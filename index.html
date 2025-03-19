@@ -1,3 +1,412 @@
-<html>
-  my static page 1
+<!DOCTYPE html>
+	<head>
+		
+		<meta charset="UTF-8">
+     <meta id="viewport" name="viewport_name" content="width=device-width,height=device-height,initial-scale=1.0, user-scalable=no">
+ <script>
+		
+	 </script>
+<!--<meta name="viewport" content="width=device-width,initial-scale=0.2, user-scalable=no">-->
+		<title> Game</title>
+		<!-- <link rel="stylesheet" href="snake.css"> -->
+		<style>canvas {
+			display:block;
+			border: 5px solid black;
+		} </style>
+	</head>
+	<body>
+		
+		<script>
+			function Planet(mass,x,y,vx,vy,type){
+				this.x=x;
+				this.y=y;
+				this.x_old=x;
+				this.y_old=y;
+				this.vx=vx;
+				this.vy=vy;
+				this.ax=0;
+				this.ay=0;
+				this.mass=mass;
+				this.radius=Math.sqrt(mass)
+				this.status=true;
+				this.type=type;
+
+				this.draw=function(){
+					var context=game.ctx;
+			          context.fillStyle="red"
+			         // context.fillText("M"+Math.floor(100*this.mass)/100,this.x,this.y-1.1*this.radius);
+					context.beginPath();
+				    context.arc(this.x, this.y, this.radius, 0, 2 * Math.PI, false);
+				    if(this.type==0){
+				    	//context.fillStyle = 'blue';
+					    context.fill();
+					    context.lineWidth = 5;
+					    //context.strokeStyle = 'blue';
+					    context.stroke();
+				    }
+				    if(this.type==1){
+				    	context.fillStyle = 'green';
+					    context.fill();
+					    context.lineWidth = 5;
+					    
+					    context.stroke();
+				    }
+				    context.fillStyle = 'red';
+					context.fill();
+				}
+				getAlertMessage=function(){
+					var msg="";
+					for(var a=0;a<game.planets.length;a++){
+						msg+="index "+a+" vx "+game.planets[a].vx+" vy "+game.planets[a].vy; 
+					}
+					return msg;
+				}
+				this.isTooClose=function(planet){
+					if(planet.status==true){
+						var dx=this.x-planet.x;
+						var dy=this.y-planet.y;
+						var d=Math.sqrt(dx*dx+dy*dy);
+						//var new_radius=this.radius+planet.radius;
+						var new_radius=Math.sqrt(this.mass+planet.mass);
+						if(d>this.radius && d<new_radius){
+							return true;
+						}
+					}
+					return false;
+				}
+				this.collide=function(planet){
+					this.vx=(this.vx*this.mass+planet.vx*planet.mass)/(planet.mass+this.mass);
+					this.vy=(this.vy*this.mass+planet.vy*planet.mass)/(planet.mass+this.mass);
+					this.x=(this.x*this.mass+planet.x*planet.mass)/(planet.mass+this.mass);
+					this.y=(this.y*this.mass+planet.y*planet.mass)/(planet.mass+this.mass);
+					planet.vx=0;
+					planet.vy=0;
+
+					this.mass+=planet.mass;
+					this.radius=Math.sqrt(this.mass);
+					planet.mass=0;
+					planet.status=false;
+				}
+				this.move=function(){
+					var freemove=true;
+					this.ay=0;
+					this.ax=0;
+					var index=game.planets.length-1;
+					while(index>=0 && freemove){
+						var planet=game.planets[index];
+						//console.log(index+"=> "+planet.x+" "+planet.y);			
+						if(this.isTooClose(planet) ){
+							freemove=false;
+							//manage collision
+							this.collide(planet);
+						}else{
+							//update freemove
+							var dx=this.x-planet.x;
+							var dy=this.y-planet.y;
+							var d=Math.sqrt(dx*dx+dy*dy);
+							if(d>this.radius){//to avoid self influence
+								this.ax+=-planet.mass*game.G*dx/(d*d*d);
+							this.ay+=-planet.mass*game.G*dy/(d*d*d);
+							}
+						}
+						index-=1
+					}
+					if(freemove ){
+						this.vx+=this.ax*game.dt;
+						this.x+=this.vx*game.dt;
+						this.vy+=this.ay*game.dt;
+						this.y+=this.vy*game.dt;
+						//console.log(this.vx+" "+this.vy+" "+this.x+" "+this.y);	
+					}
+				}		
+				this.update=function(){
+					this.draw();
+					this.move();
+				}
+			}
+
+			//import * from './Bullet'
+
+var game={
+	canvas: document.createElement("canvas"),
+	start:function(){
+		this.canvas.width=1920;
+		this.canvas.height=1080;
+
+		this.start_x=300;
+		this.start_y=200;
+
+		this.ctx=this.canvas.getContext("2d");
+		document.body.appendChild(this.canvas);
+		//GoInFullscreen(document)
+
+		this.update_freq=10;
+		this.interval=setInterval(update,this.update_freq);
+		this.planets=[];
+		this.last_rocket_timer=0;
+		this.last_rocket_timer_duration=500;
+		this.G=0.05;
+		this.N=400;
+		this.s=3;
+		this.dt=1;
+		this.mass=0
+		this.mass_vx=0;
+		this.mass_vy=0;
+
+		this.mass_cx=0;
+		this.mass_cy=0;
+		this.iteration=0;
+
+		this.MassCenter=new  MassCenter(this.mass,this.mass_cx,this.mass_cy);
+
+		this.no_collision=false
+		if(false){
+			
+			var y= game.canvas.height/2;
+			var mass=5;
+			var R0=0.2*game.canvas.height/2;
+			var x= game.canvas.width/2+R0;
+			this.planets.push(new Planet(mass,x,y,0,0,0));
+			this.mass+=mass;
+			x= game.canvas.width/2-R0;
+			this.planets.push(new Planet(mass,x,y,0,0,0));
+			this.mass+=mass;
+		}else{
+			for(var a=0;a<this.N;a++){
+				var R0=((Math.random()*0.9)+0.1)*game.canvas.height/2;
+				//R0=400;
+				var angle= Math.random()*2*Math.PI;
+				var x= game.canvas.width/2+R0*Math.cos(angle);
+				var y= game.canvas.height/2+R0*Math.sin(angle);
+
+				var dx=(x-game.canvas.width/2);
+				var dy=(y-game.canvas.height/2);
+
+				var R= Math.sqrt(dx*dx+dy*dy);
+				
+
+				angle+= Math.PI/2;
+
+				
+				var vy=(this.s/R)/(1-dx/dy);
+				var vx=-vy*dy/dx;
+
+				var norm=Math.sqrt(vx*vx+vy*vy);
+
+				vy=vy*this.s/norm;
+				vx=vx*this.s/norm;
+
+				vx=Math.cos(angle)*this.s/(R);
+				vy=Math.sin(angle)*this.s/(R);
+				
+				var mass=5+ Math.random()*5;
+				//mass=0
+				this.planets.push(new Planet(mass,x,y,vx,vy,0));
+
+				this.mass+=mass;
+		}
+		}
+		
+
+		//this.planets.push(new Planet(200,game.canvas.width/2,game.canvas.height/2,0,0,2));
+		// to create a 1 planet-1 satellite scenario
+		//satelliteScenario();
+		this.mass0=this.mass;	
+	},
+	clear:function(){
+		this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
+		this.ctx.fillStyle="black";
+		
+		this.ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
+	}
+
+	};
+	function MassCenter(mass,x,y){
+	this.mass=mass;
+	this.x=x;
+	this.y=y;
+
+	this. x_vec=[];
+	this. y_vec=[];
+	this.radius=2;
+	this.update=function(x_input,y_input){
+		this.x=x_input;
+		this.y=y_input;
+
+		var N=this.x_vec.length;
+		if(N==0){
+			this.x_vec.push(this.x);
+			this.y_vec.push(this.y);
+		}else{
+			var x_last=this.x_vec[N-1];
+			var y_last=this.y_vec[N-1];
+			var dx=x_last-this.x;
+			var dy=y_last-this.y;
+			var d_min=this.radius;
+			var d=Math.sqrt(dx*dx+dy*dy);
+			//console.log(N);
+			if(d>d_min ){
+				this.x_vec.push(this.x);
+				this.y_vec.push(this.y);
+			}		
+		}
+		
+	}
+	this.render=function(){
+		var context=game.ctx;
+	    context.fillStyle="green";
+		for(var b=this.x_vec.length-1;b>=0;b--){
+			context.beginPath();
+			context.arc(this.x_vec[b], this.y_vec[b], 2, 0, 2 * Math.PI, false);
+			context.fillStyle = 'green';
+			context.fill();
+		}
+		
+	}
+}
+	game.start();
+	function findlargest(){
+		index =-1;
+		largest_mass=0;
+		game.mass=0;
+		game.mass_vx=0;
+		game.mass_vy=0;
+		game.mass_cx=0;
+		game.mass_cy=0;
+
+		for(var b=game.planets.length-1;b>=0;b--){
+			game.mass+=game.planets[b].mass;
+			game.mass_vx+=game.planets[b].mass*game.planets[b].vx;
+			game.mass_vy+=game.planets[b].mass*game.planets[b].vy;
+
+			game.mass_cx+=game.planets[b].mass*game.planets[b].x;
+			game.mass_cy+=game.planets[b].mass*game.planets[b].y;
+
+			if(game.planets[b].mass>largest_mass){
+				largest_mass=game.planets[b].mass
+				index=b
+			}
+		}
+		game.mass_cx=game.mass_cx/game.mass;
+		game.mass_cy=game.mass_cy/game.mass;
+		return index
+	}
+	function drawLargest(){
+		var context=game.ctx;
+			largest=findlargest();
+			if(largest!=-1){
+				//console.log("[Game][update] largest index "+largest);
+				context.fillStyle="white"
+				context.fillText("largest "+Math.floor(100*game.planets[largest].mass)/100,game.planets[largest].x,game.planets[largest].y);
+			}
+		}
+	function drawMassCenter(){
+		var context=game.ctx;
+	    context.fillStyle="green"
+	    context.fillText("Mass center "+Math.floor(100*game.mass_cx)/100+","+Math.floor(100*game.mass_cx)/100+" L"+game.MassCenter.x_vec.length,game.mass_cx,game.mass_cy-6);
+		context.beginPath();
+		context.arc(game.mass_cx, game.mass_cy, 2, 0, 2 * Math.PI, false);
+		context.fillStyle = 'green';
+		context.fill();
+		//console.log("MassCenter"+game.mass_cx+" "+game.mass_cy);
+		game.MassCenter.update(game.mass_cx,game.mass_cy);
+	}
+	function update(){
+		try{
+			game.clear()
+			var context=game.ctx;
+			context.fillStyle="red"
+			//console.log(game.mass)
+			context.fillText("Mass"+Math.floor(100*game.mass)/100+"div "+Math.floor(100*(game.mass/game.mass0-1)),200,200);
+			context.fillText("Mvx"+Math.floor(100*game.mass_vx)/100+" Mvy "+Math.floor(100*(game.mass_vy))/100,200,220);
+			game.mass=0;
+
+			largest=-1;
+			largest_mass=0;
+			for(var b=game.planets.length-1;b>=0;b--){
+					var planet=game.planets[b];
+					if(planet.status==false){
+						//game.planets.splice(b,1);
+					}else{
+						game.planets[b].update();
+						
+					}		
+			}
+
+			for(var b=game.planets.length-1;b>=0;b--){
+				if(game.planets[b].status==false){
+					game.planets.splice(b,1);
+				}
+			}
+			drawLargest();
+			drawMassCenter();
+			game.iteration+=1;
+			
+			
+			
+			game.MassCenter.render();
+			
+			//player interaction
+			/*
+
+			//on click, shoot planets
+			document.addEventListener("click",function(event){
+				var x1=event.clientX;
+				var y1=event.clientY;
+				var vx=x1-game.start_x;
+				var vy=y1-game.start_y;
+				var v=Math.sqrt(vx*vx+vy*vy);
+				var speed=5;
+				vx=speed*vx/v;
+				vy=speed*vy/v;
+				var t_now=new Date().getTime();
+				if(t_now> game.last_rocket_timer+game.last_rocket_timer_duration){
+					game.last_rocket_timer=t_now;
+					game.planets.push(new Planet(10,game.start_x,game.start_y,vx,vy,0));	
+				}
+				
+
+			});
+			//draw start
+			var w=100
+			game.ctx.fillStyle="yellow"
+			game.ctx.fillRect(game.start_x-w/2,game.start_y-w/2,w,w)
+
+			*/
+		}catch(error){
+			console.error(error);
+
+		}
+		
+		
+	}	
+	function satelliteScenario(){
+		game.planets=[]
+		var m0=2000
+		var x0=1000;
+		var y0=600;
+		//satellite parameters
+		var r_orbite=200;
+		var v_orbite=Math.sqrt(game.G*3*m0/r_orbite);
+		//create orbiting planet
+		game.planets.push(new Planet(10,x0,y0-r_orbite,v_orbite,0,0));	
+		//create "stable attractive planet"
+		game.planets.push(new Planet(2*m0,x0,y0,0,0,1));
+		game.planets.push(new Planet(m0,x0+0.0001,y0,0,0,1));	
+	}
+
+
+
+
+			
+		</script>
+		<script></script>
+		<script src="Game.js"></script>
+
+		
+		<noscript>
+			<p> JS is turned off<p>
+		</noscript>
+		
+	</body>
 </html>
